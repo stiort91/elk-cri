@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2 # migracion desde 7.11.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.1
+    user: root
+    environment:
+      - discovery.type=single-node
+#      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1G -Xmx5G"
+      - ELASTIC_PASSWORD=Else_2021+
+    deploy:
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        traefik.elasticsearch.port: 9200
+        traefik.elasticsearch.frontend.rule: "Host: elastic.ieca.junta-andalucia.es;"
+        traefik.docker.network: mesh    
+    networks:
+      - mesh
+    volumes:
+      - elasticsearch_config:/usr/share/elasticsearch/config
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  kibana:
+#    image: docker.elastic.co/kibana/kibana:7.16.2 # migracion desde 7.11.2
+    image: docker.elastic.co/kibana/kibana:7.17.1
+    deploy:
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        traefik.kibana.port: 5601
+        traefik.kibana.frontend.rule: "Host: elk.ieca.junta-andalucia.es;"
+        traefik.docker.network: mesh
+    depends_on:
+      - elasticsearch
+    networks:
+      - mesh
+    volumes:
+      - kibana_config:/usr/share/kibana/config
+      - kibana_data:/usr/share/kibana/src
+
+  logstash:
+#    image: docker.elastic.co/logstash/logstash:7.16.2 # migracion desde 7.11.2
+    image: docker.elastic.co/logstash/logstash:7.17.1
+    environment:
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"    
+    deploy:
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        traefik.logstash.port: 5144 
+        traefik.logstash.frontend.rule: "Host: logstashpro.ieca.junta-andalucia.es;"
+#        traefik.beats.port: 5044
+#        traefik.beats.frontend.rule: "Host: beats.ieca.junta-andalucia.es;"
+        traefik.docker.network: mesh
+    ports:
+#     - "5044:5044"
+     - "5144:5144"
+    depends_on:
+      - elasticsearch
+    networks:
+      - mesh
+    volumes:
+      - logstash_config:/usr/share/logstash/config
+      - logstash_pipeline:/usr/share/logstash/pipeline
+      
+
+volumes:
+  elasticsearch_config:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=dockernfs,rw
+      device: ":/opt/volumes/elk/elasticsearch/config"
+  elasticsearch_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=dockernfs,vers=4,rw
+      device: ":/opt/volumes/elk/elasticsearch/data"
+  kibana_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=dockernfs,rw
+      device: ":/opt/volumes/elk/kibana/data"
+  logstash_config:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=dockernfs,rw
+      device: ":/opt/volumes/elk/logstash_config"
+  logstash_pipeline:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=dockernfs,rw
+      device: ":/opt/volumes/elk/logstash_pipeline"
+  kibana_config:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=dockernfs,rw
+      device: ":/opt/volumes/elk/kibana/config"
+
+networks:
+  mesh:
+    external: true

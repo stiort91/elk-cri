@@ -1,0 +1,44 @@
+# rsyslog configuration file
+module(load="imuxsock") # provides support for local system logging (e.g. via logger command)
+#module(load="imklog")   # provides kernel logging support (previously done by rklogd) [NO FUNCIONA EN DOCKER]
+
+$MaxMessageSize 8k
+# Provides UDP syslog reception
+$ModLoad imudp
+$UDPServerRun 514
+# # Provides TCP syslog reception
+$ModLoad imtcp
+$InputTCPServerRun 514
+
+#$DefaultNetstreamDriver gtls  [NO FUNCIONA EN DOCKER]
+$DefaultNetstreamDriverCAFile /etc/pki/tls/certs/rsyslog.crt
+$DefaultNetstreamDriverCertFile /etc/pki/tls/certs/rsyslog.crt
+$DefaultNetstreamDriverKeyFile /etc/pki/tls/private/rsyslog.key
+
+$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+## Global Directives and defaults
+*.info;mail.none;authpriv.none;cron.none;local7.none    /var/log/messages
+authpriv.*                                              /var/log/secure
+mail.*                                                  -/var/log/maillog
+cron.*                                                  /var/log/cron
+uucp,news.crit                                          /var/log/spooler
+local7.*                                                /var/log/boot.log
+
+#$WorkDirectory /var/lib/rsyslog
+#$DefaultNetstreamDriver gtls
+#$DefaultNetstreamDriverCAFile /etc/rsyslog.d/rsyslog.crt
+#$DefaultNetstreamDriverCertFile /etc/rsyslog.d/rsyslog.crt
+#$DefaultNetstreamDriverKeyFile /etc/rsyslog.d/rsyslog.key
+
+# Use default timestamp format (can be overidden per rule set)
+$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+
+# Include config files in /etc/rsyslog.d/
+$IncludeConfig /etc/rsyslog.d/*.conf
+$IncludeConfig /etc/rsyslog.d/input/*.conf
+$IncludeConfig /etc/rsyslog.d/output/*.conf
+
+# Optional extra custom config to inlcude from volume via /etc/rsyslog.d/extra
+$IncludeConfig /etc/rsyslog.d/extra/*.conf
+
+

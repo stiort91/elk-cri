@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  rsyslog:
+    image: registry.ieca.junta-andalucia.es/rsyslog:1.0 # rsyslog/syslog_appliance_alpine
+    user: root
+    deploy:
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        traefik.rsyslog.port: 514
+        traefik.rsyslog.frontend.rule: "Host: rsyslogpro.ieca.junta-andalucia.es;"
+        traefik.docker.network: mesh
+    ports:
+      - 514:514/udp
+      - 514:514
+    volumes:
+      - rsyslog.d:/etc/rsyslog.d
+#      - rsyslog_data:/var/log
+    configs:
+      - source: rsyslog_config
+        target: /etc/rsyslog.conf
+    networks:
+      - mesh
+volumes:
+#  rsyslog_data:
+#    driver: local
+#    driver_opts:
+#      type: nfs
+#      o: addr=dockernfs,rw
+#      device: ":/opt/volumes/elk/rsyslog_data"
+  rsyslog.d:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=dockernfs,rw
+      device: ":/opt/volumes/elk/rsyslog_pipeline"
+
+configs:
+  rsyslog_config:
+    file: ./rsyslog/rsyslog.conf
+
+networks:
+  mesh:
+    external: true
+
